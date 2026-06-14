@@ -6,6 +6,7 @@ skip-lint = false
 
 [programs.devnet]
 prediction = "Bki3CWk4AmVF78zvh81rup2EK2iJY4WRCUXesAv8TECF"
+conditional_token = "HYryinXp2Vf8zM4ZuTuyuSvN5kmNRHparmU1MJ6Z8u9J"
 
 [registry]
 url = "https://api.apr.dev"
