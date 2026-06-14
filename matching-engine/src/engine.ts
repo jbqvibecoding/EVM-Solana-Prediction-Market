@@ -98,4 +98,17 @@ export class MatchingEngine {
     this.signatures.delete(id);
     return this.book.cancel(id);
   }
+
+  /** Resting bids/asks for a market/outcome. */
+  orderBook(market: string, outcome: number): { bids: Order[]; asks: Order[] } {
+    return {
+      bids: this.book.resting(market, outcome, SIDE_BUY),
+      asks: this.book.resting(market, outcome, SIDE_SELL),
+    };
+  }
+
+  /** Best bid/ask prices for a market/outcome. */
+  prices(market: string, outcome: number): { bid: number | null; ask: number | null } {
+    return this.book.topOfBook(market, outcome);
+  }
 }
