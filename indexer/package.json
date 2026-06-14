@@ -1,0 +1,20 @@
+{
+  "name": "indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "On-chain event indexer for the Solana prediction-market CLOB. Decodes program events and projects positions, volume, trades and resolution into a read model (Postgres).",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
