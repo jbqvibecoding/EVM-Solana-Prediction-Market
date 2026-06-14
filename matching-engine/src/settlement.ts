@@ -20,6 +20,11 @@ export const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey(
 const EXCHANGE_SEED = Buffer.from("exchange");
 const FILL_SEED = Buffer.from("fill");
 
+// Seeds shared with the conditional_token program (to re-derive outcome mints).
+const CT_CONDITION_SEED = Buffer.from("condition");
+const CT_YES_MINT_SEED = Buffer.from("yes");
+const CT_NO_MINT_SEED = Buffer.from("no");
+
 /** Anchor's 8-byte instruction discriminator: sha256("global:<name>")[..8]. */
 export function anchorDiscriminator(ixName: string): Buffer {
   return createHash("sha256").update(`global:${ixName}`).digest().subarray(0, 8);
@@ -39,6 +44,31 @@ export function deriveFill(
   return PublicKey.findProgramAddressSync(
     [FILL_SEED, maker.toBuffer(), saltBuf],
     programId,
+  )[0];
+}
+
+/** Condition PDA in the conditional_token program for a market. */
+export function deriveCondition(
+  conditionalTokenProgramId: PublicKey,
+  market: PublicKey,
+): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [CT_CONDITION_SEED, market.toBuffer()],
+    conditionalTokenProgramId,
+  )[0];
+}
+
+/** YES/NO outcome mint for (market, outcome), as derived by conditional_token. */
+export function deriveOutcomeMint(
+  conditionalTokenProgramId: PublicKey,
+  market: PublicKey,
+  outcome: number,
+): PublicKey {
+  const condition = deriveCondition(conditionalTokenProgramId, market);
+  const seed = outcome === 0 ? CT_YES_MINT_SEED : CT_NO_MINT_SEED;
+  return PublicKey.findProgramAddressSync(
+    [seed, condition.toBuffer()],
+    conditionalTokenProgramId,
   )[0];
 }
 
@@ -133,8 +163,8 @@ export function buildMatchOrdersIx(
 
 export interface SettlementConfig {
   exchangeProgramId: PublicKey;
+  conditionalTokenProgramId: PublicKey;
   collateralMint: PublicKey;
-  outcomeMint: PublicKey;
   operator: PublicKey;
   feeAuthority: PublicKey;
 }
@@ -154,6 +184,12 @@ export function buildSettlementInstructions(
 ): TransactionInstruction[] {
   const buyer = new PublicKey(match.buy.maker);
   const seller = new PublicKey(match.sell.maker);
+  const market = new PublicKey(match.buy.market);
+  const outcomeMint = deriveOutcomeMint(
+    cfg.conditionalTokenProgramId,
+    market,
+    match.buy.outcome,
+  );
 
   const buyIx = buildEd25519VerifyIx(buyer, serializeOrder(match.buy), buySignature, 0);
   const sellIx = buildEd25519VerifyIx(seller, serializeOrder(match.sell), sellSignature, 1);
@@ -162,11 +198,11 @@ export function buildSettlementInstructions(
     operator: cfg.operator,
     exchange: deriveExchange(cfg.exchangeProgramId),
     collateralMint: cfg.collateralMint,
-    outcomeMint: cfg.outcomeMint,
+    outcomeMint,
     buyerCollateral: deriveAta(buyer, cfg.collateralMint),
-    buyerOutcome: deriveAta(buyer, cfg.outcomeMint),
+    buyerOutcome: deriveAta(buyer, outcomeMint),
     sellerCollateral: deriveAta(seller, cfg.collateralMint),
-    sellerOutcome: deriveAta(seller, cfg.outcomeMint),
+    sellerOutcome: deriveAta(seller, outcomeMint),
     feeCollateral: deriveAta(cfg.feeAuthority, cfg.collateralMint),
     buyFill: deriveFill(cfg.exchangeProgramId, buyer, match.buy.salt),
     sellFill: deriveFill(cfg.exchangeProgramId, seller, match.sell.salt),

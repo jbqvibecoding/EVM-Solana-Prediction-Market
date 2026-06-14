@@ -77,8 +77,8 @@ describe("settlement encoding", () => {
     const ixs = buildSettlementInstructions(
       {
         exchangeProgramId: PROGRAM,
+        conditionalTokenProgramId: Keypair.generate().publicKey,
         collateralMint: Keypair.generate().publicKey,
-        outcomeMint: Keypair.generate().publicKey,
         operator: Keypair.generate().publicKey,
         feeAuthority: Keypair.generate().publicKey,
       },
