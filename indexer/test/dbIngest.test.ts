@@ -38,6 +38,7 @@ function recordingStore() {
     setCursor: async (s) => {
       cursor = s;
     },
+    getMarkets: async () => [],
     getPositions: async () => [],
     getVolume: async () => 0n,
     getTrades: async () => [],

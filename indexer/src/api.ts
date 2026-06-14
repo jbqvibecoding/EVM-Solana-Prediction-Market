@@ -1,5 +1,5 @@
 import { ReadModel, Trade, getVolume } from "./projection.js";
-import { leaderboardByVolume, marketTrades, userPositions } from "./queries.js";
+import { MarketSummary, leaderboardByVolume, marketTrades, markets, userPositions } from "./queries.js";
 
 export interface ApiRequest {
   method: string;
@@ -10,6 +10,19 @@ export interface ApiRequest {
 export interface ApiResponse {
   status: number;
   body: unknown;
+}
+
+function wireMarket(m: MarketSummary) {
+  return {
+    market: m.market,
+    condition: m.condition,
+    collateralMint: m.collateralMint,
+    yesMint: m.yesMint,
+    noMint: m.noMint,
+    resolved: m.resolved,
+    winningOutcome: m.winningOutcome,
+    volume: m.volume.toString(),
+  };
 }
 
 function wireTrade(t: Trade) {
@@ -40,6 +53,10 @@ export function handleRequest(model: ReadModel, req: ApiRequest): ApiResponse {
   if (req.method !== "GET") return { status: 405, body: { error: "method not allowed" } };
 
   if (req.path === "/health") return { status: 200, body: { ok: true } };
+
+  if (req.path === "/markets") {
+    return { status: 200, body: markets(model).map(wireMarket) };
+  }
 
   if (req.path === "/positions") {
     const user = req.query.user;

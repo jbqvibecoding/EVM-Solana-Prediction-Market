@@ -1,5 +1,35 @@
 import { ReadModel, Trade } from "./projection.js";
 
+export interface MarketSummary {
+  market: string;
+  condition: string;
+  collateralMint: string;
+  yesMint: string;
+  noMint: string;
+  resolved: boolean;
+  winningOutcome: number | null;
+  volume: bigint;
+}
+
+/** On-chain markets the indexer has seen, with resolution status and volume. */
+export function markets(model: ReadModel): MarketSummary[] {
+  const out: MarketSummary[] = [];
+  for (const meta of model.conditions.values()) {
+    const winning = model.marketResolved.get(meta.market);
+    out.push({
+      market: meta.market,
+      condition: meta.condition,
+      collateralMint: meta.collateralMint,
+      yesMint: meta.yesMint,
+      noMint: meta.noMint,
+      resolved: winning !== undefined,
+      winningOutcome: winning ?? null,
+      volume: model.volumeByMarket.get(meta.market) ?? 0n,
+    });
+  }
+  return out;
+}
+
 export interface UserPosition {
   market: string;
   outcome: number;

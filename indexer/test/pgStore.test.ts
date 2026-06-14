@@ -100,6 +100,17 @@ describe("PgStore reads", () => {
     ]);
   });
 
+  it("maps market rows incl. null resolution and string volume", async () => {
+    const sql = new FakeExecutor().on("FROM conditions c", [
+      { market: "M1", condition: "C1", collateral_mint: "U", yes_mint: "Y", no_mint: "N", winning_outcome: 1, volume: "60" },
+      { market: "M2", condition: "C2", collateral_mint: "U", yes_mint: "Y", no_mint: "N", winning_outcome: null, volume: "0" },
+    ]);
+    expect(await new PgStore(sql).getMarkets()).toEqual([
+      { market: "M1", condition: "C1", collateralMint: "U", yesMint: "Y", noMint: "N", resolved: true, winningOutcome: 1, volume: 60n },
+      { market: "M2", condition: "C2", collateralMint: "U", yesMint: "Y", noMint: "N", resolved: false, winningOutcome: null, volume: 0n },
+    ]);
+  });
+
   it("reads and writes the ingest cursor", async () => {
     const sql = new FakeExecutor().on("FROM ingest_cursor", [{ last: "sig9" }]);
     const store = new PgStore(sql);

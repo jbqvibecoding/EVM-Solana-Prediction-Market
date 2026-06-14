@@ -60,6 +60,39 @@ describe("indexer api", () => {
     expect(board.find((e) => e.trader === buyer)?.volume).toBe("60");
   });
 
+  it("lists markets with resolution status and volume", () => {
+    const model = emptyModel();
+    const market = pk();
+    const condition = pk();
+    applyEvent(model, {
+      type: "ConditionInitialized",
+      condition,
+      market,
+      collateralMint: pk(),
+      yesMint: pk(),
+      noMint: pk(),
+    });
+    applyEvent(model, { type: "ConditionResolved", condition, winningOutcome: OUTCOME_YES });
+
+    const res = handleRequest(model, { method: "GET", path: "/markets", query: {} });
+    expect(res.status).toBe(200);
+    const body = res.body as Array<{
+      market: string;
+      condition: string;
+      resolved: boolean;
+      winningOutcome: number | null;
+      volume: string;
+    }>;
+    expect(body).toHaveLength(1);
+    expect(body[0]).toMatchObject({
+      market,
+      condition,
+      resolved: true,
+      winningOutcome: OUTCOME_YES,
+      volume: "0",
+    });
+  });
+
   it("400s without required params and 404s unknown routes", () => {
     const { model } = seeded();
     expect(handleRequest(model, { method: "GET", path: "/positions", query: {} }).status).toBe(400);

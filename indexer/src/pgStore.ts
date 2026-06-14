@@ -1,7 +1,7 @@
 import { DecodedEvent } from "./events.js";
 import { EventMeta, OUTCOME_NO, OUTCOME_YES } from "./projection.js";
 import { SqlExecutor } from "./sql.js";
-import { Store, StorePosition, StoreTrade, TraderVolume } from "./store.js";
+import { Store, StoreMarket, StorePosition, StoreTrade, TraderVolume } from "./store.js";
 
 /**
  * Postgres-backed read-model store. Each event maps to SQL upserts that mirror
@@ -142,6 +142,35 @@ export class PgStore implements Store {
         await this.sql.query(REDEEM_POSITION, [ev.user, ev.condition, (-ev.amount).toString()]);
         break;
     }
+  }
+
+  async getMarkets(): Promise<StoreMarket[]> {
+    const rows = await this.sql.query<{
+      market: string;
+      condition: string;
+      collateral_mint: string;
+      yes_mint: string;
+      no_mint: string;
+      winning_outcome: number | null;
+      volume: string;
+    }>(
+      `SELECT c.condition, c.market, c.collateral_mint, c.yes_mint, c.no_mint,
+              r.winning_outcome,
+              COALESCE((SELECT SUM(cost) FROM trades t WHERE t.market = c.market), 0) AS volume
+       FROM conditions c
+       LEFT JOIN market_resolutions r ON r.market = c.market
+       ORDER BY c.market`,
+    );
+    return rows.map((r) => ({
+      market: r.market,
+      condition: r.condition,
+      collateralMint: r.collateral_mint,
+      yesMint: r.yes_mint,
+      noMint: r.no_mint,
+      resolved: r.winning_outcome !== null,
+      winningOutcome: r.winning_outcome === null ? null : Number(r.winning_outcome),
+      volume: BigInt(r.volume),
+    }));
   }
 
   async getPositions(user: string): Promise<StorePosition[]> {

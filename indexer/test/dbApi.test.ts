@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { handleDbRequest } from "../src/dbApi.js";
-import { Store, StorePosition, StoreTrade, TraderVolume } from "../src/store.js";
+import { Store, StoreMarket, StorePosition, StoreTrade, TraderVolume } from "../src/store.js";
 
 function fakeStore(overrides: Partial<Store> = {}): Store {
   return {
     applyEvent: async () => {},
+    getMarkets: async () => [],
     getPositions: async () => [],
     getVolume: async () => 0n,
     getTrades: async () => [],
@@ -60,6 +61,17 @@ describe("handleDbRequest", () => {
     ]);
     const l = await handleDbRequest(store, req("/leaderboard"));
     expect(l.body).toEqual([{ trader: "B", volume: "60" }]);
+  });
+
+  it("markets serialize with resolution + volume", async () => {
+    const markets: StoreMarket[] = [
+      { market: "M", condition: "C", collateralMint: "U", yesMint: "Y", noMint: "N", resolved: true, winningOutcome: 0, volume: 60n },
+    ];
+    const store = fakeStore({ getMarkets: async () => markets });
+    const res = await handleDbRequest(store, req("/markets"));
+    expect(res.body).toEqual([
+      { market: "M", condition: "C", collateralMint: "U", yesMint: "Y", noMint: "N", resolved: true, winningOutcome: 0, volume: "60" },
+    ]);
   });
 
   it("unknown path 404, non-GET 405", async () => {

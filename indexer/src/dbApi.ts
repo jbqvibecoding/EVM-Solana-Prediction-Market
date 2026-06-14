@@ -1,5 +1,18 @@
 import { ApiRequest, ApiResponse } from "./api.js";
-import { Store, StoreTrade } from "./store.js";
+import { Store, StoreMarket, StoreTrade } from "./store.js";
+
+function wireMarket(m: StoreMarket) {
+  return {
+    market: m.market,
+    condition: m.condition,
+    collateralMint: m.collateralMint,
+    yesMint: m.yesMint,
+    noMint: m.noMint,
+    resolved: m.resolved,
+    winningOutcome: m.winningOutcome,
+    volume: m.volume.toString(),
+  };
+}
 
 function wireTrade(t: StoreTrade) {
   return {
@@ -29,6 +42,11 @@ export async function handleDbRequest(store: Store, req: ApiRequest): Promise<Ap
   if (req.method !== "GET") return { status: 405, body: { error: "method not allowed" } };
 
   if (req.path === "/health") return { status: 200, body: { ok: true } };
+
+  if (req.path === "/markets") {
+    const markets = await store.getMarkets();
+    return { status: 200, body: markets.map(wireMarket) };
+  }
 
   if (req.path === "/positions") {
     const user = req.query.user;

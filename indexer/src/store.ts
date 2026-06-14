@@ -29,8 +29,20 @@ export interface TraderVolume {
   volume: bigint;
 }
 
+export interface StoreMarket {
+  market: string;
+  condition: string;
+  collateralMint: string;
+  yesMint: string;
+  noMint: string;
+  resolved: boolean;
+  winningOutcome: number | null;
+  volume: bigint;
+}
+
 export interface Store {
   applyEvent(ev: DecodedEvent, meta?: EventMeta): Promise<void>;
+  getMarkets(): Promise<StoreMarket[]>;
   getPositions(user: string): Promise<StorePosition[]>;
   getVolume(market: string): Promise<bigint>;
   getTrades(market?: string): Promise<StoreTrade[]>;

@@ -15,9 +15,18 @@ export interface Trade {
   slot?: number;
 }
 
+/** On-chain market metadata from ConditionInitialized (keyed by condition). */
+export interface ConditionMeta {
+  condition: string;
+  market: string;
+  collateralMint: string;
+  yesMint: string;
+  noMint: string;
+}
+
 /**
  * In-memory read model derived purely from program events. The Postgres adapter
- * (next slice) applies the same semantics as SQL upserts.
+ * (pgStore.ts) applies the same semantics as SQL upserts.
  *
  * Position keys are `${user}|${market}|${outcome}` holding net outcome shares.
  */
@@ -27,6 +36,8 @@ export interface ReadModel {
   positions: Map<string, bigint>;
   /** condition account -> market */
   conditionMarket: Map<string, string>;
+  /** condition account -> on-chain market metadata */
+  conditions: Map<string, ConditionMeta>;
   /** market -> winning outcome (once resolved) */
   marketResolved: Map<string, number>;
 }
@@ -37,6 +48,7 @@ export function emptyModel(): ReadModel {
     volumeByMarket: new Map(),
     positions: new Map(),
     conditionMarket: new Map(),
+    conditions: new Map(),
     marketResolved: new Map(),
   };
 }
@@ -102,6 +114,13 @@ export function applyEvent(
     }
     case "ConditionInitialized": {
       model.conditionMarket.set(ev.condition, ev.market);
+      model.conditions.set(ev.condition, {
+        condition: ev.condition,
+        market: ev.market,
+        collateralMint: ev.collateralMint,
+        yesMint: ev.yesMint,
+        noMint: ev.noMint,
+      });
       break;
     }
     case "ConditionResolved": {
