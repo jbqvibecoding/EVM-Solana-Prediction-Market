@@ -172,6 +172,12 @@ pub mod events_futures {
             market_id,
             creator: market.creator,
             collateral_mint: market.collateral_mint,
+            vault: market.vault,
+            title: market.title.clone(),
+            m_num,
+            m_den,
+            n_num,
+            n_den,
         });
         Ok(())
     }
@@ -212,6 +218,7 @@ pub mod events_futures {
             market_id,
             outcome_index,
             mint: pool.mint,
+            label: pool.label.clone(),
         });
         Ok(())
     }
@@ -307,6 +314,7 @@ pub mod events_futures {
             user: ctx.accounts.user.key(),
             outcome_index,
             usdc_amount: amount,
+            fee,
             tokens_minted: tokens,
         });
         Ok(())
@@ -486,6 +494,7 @@ pub mod events_futures {
         emit!(SparkWinningsClaimed {
             market_id,
             user: ctx.accounts.user.key(),
+            tokens_burned: balance,
             payout,
         });
         Ok(())
@@ -854,6 +863,12 @@ pub struct SparkMarketCreated {
     pub market_id: u64,
     pub creator: Pubkey,
     pub collateral_mint: Pubkey,
+    pub vault: Pubkey,
+    pub title: String,
+    pub m_num: u64,
+    pub m_den: u64,
+    pub n_num: u64,
+    pub n_den: u64,
 }
 
 #[event]
@@ -861,6 +876,7 @@ pub struct SparkOutcomeAdded {
     pub market_id: u64,
     pub outcome_index: u8,
     pub mint: Pubkey,
+    pub label: String,
 }
 
 #[event]
@@ -869,6 +885,8 @@ pub struct SparkTokensMinted {
     pub user: Pubkey,
     pub outcome_index: u8,
     pub usdc_amount: u64,
+    /// Protocol fee taken from usdc_amount; net into the curve = amount − fee.
+    pub fee: u64,
     pub tokens_minted: u64,
 }
 
@@ -892,6 +910,8 @@ pub struct SparkMarketResolved {
 pub struct SparkWinningsClaimed {
     pub market_id: u64,
     pub user: Pubkey,
+    /// Winning tokens burned by this claim (decrements the winning supply).
+    pub tokens_burned: u64,
     pub payout: u64,
 }
 
