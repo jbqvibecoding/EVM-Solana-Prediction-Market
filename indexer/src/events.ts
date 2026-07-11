@@ -39,6 +39,14 @@ class Reader {
     this.offset += 32;
     return v.toBase58();
   }
+  /** Borsh string: u32-LE length prefix + utf8 bytes. */
+  string(): string {
+    const len = this.buf.readUInt32LE(this.offset);
+    this.offset += 4;
+    const v = this.buf.subarray(this.offset, this.offset + len).toString("utf8");
+    this.offset += len;
+    return v;
+  }
 }
 
 export type DecodedEvent =
@@ -63,7 +71,47 @@ export type DecodedEvent =
   | { type: "ConditionResolved"; condition: string; winningOutcome: number }
   | { type: "SetSplit"; condition: string; user: string; amount: bigint }
   | { type: "SetMerged"; condition: string; user: string; amount: bigint }
-  | { type: "Redeemed"; condition: string; user: string; amount: bigint };
+  | { type: "Redeemed"; condition: string; user: string; amount: bigint }
+  // events_futures (spark markets) — field order mirrors the Rust event structs.
+  | {
+      type: "SparkMarketCreated";
+      marketId: bigint;
+      creator: string;
+      collateralMint: string;
+      vault: string;
+      title: string;
+      mNum: bigint;
+      mDen: bigint;
+      nNum: bigint;
+      nDen: bigint;
+    }
+  | {
+      type: "SparkOutcomeAdded";
+      marketId: bigint;
+      outcomeIndex: number;
+      mint: string;
+      label: string;
+    }
+  | {
+      type: "SparkTokensMinted";
+      marketId: bigint;
+      user: string;
+      outcomeIndex: number;
+      usdcAmount: bigint;
+      fee: bigint;
+      tokensMinted: bigint;
+    }
+  | {
+      type: "SparkTokensRedeemed";
+      marketId: bigint;
+      user: string;
+      outcomeIndex: number;
+      tokensBurned: bigint;
+      usdcReturned: bigint;
+    }
+  | { type: "SparkMarketResolved"; marketId: bigint; winningOutcome: number; totalPool: bigint }
+  | { type: "SparkWinningsClaimed"; marketId: bigint; user: string; tokensBurned: bigint; payout: bigint }
+  | { type: "SparkFeesCollected"; marketId: bigint; amount: bigint };
 
 type EventName = DecodedEvent["type"];
 
@@ -74,6 +122,13 @@ const EVENT_NAMES: EventName[] = [
   "SetSplit",
   "SetMerged",
   "Redeemed",
+  "SparkMarketCreated",
+  "SparkOutcomeAdded",
+  "SparkTokensMinted",
+  "SparkTokensRedeemed",
+  "SparkMarketResolved",
+  "SparkWinningsClaimed",
+  "SparkFeesCollected",
 ];
 
 // name -> discriminator hex, for fast lookup.
@@ -115,6 +170,63 @@ function decodeBody(name: EventName, r: Reader): DecodedEvent {
       return { type: "SetMerged", condition: r.pubkey(), user: r.pubkey(), amount: r.u64() };
     case "Redeemed":
       return { type: "Redeemed", condition: r.pubkey(), user: r.pubkey(), amount: r.u64() };
+    case "SparkMarketCreated":
+      return {
+        type: "SparkMarketCreated",
+        marketId: r.u64(),
+        creator: r.pubkey(),
+        collateralMint: r.pubkey(),
+        vault: r.pubkey(),
+        title: r.string(),
+        mNum: r.u64(),
+        mDen: r.u64(),
+        nNum: r.u64(),
+        nDen: r.u64(),
+      };
+    case "SparkOutcomeAdded":
+      return {
+        type: "SparkOutcomeAdded",
+        marketId: r.u64(),
+        outcomeIndex: r.u8(),
+        mint: r.pubkey(),
+        label: r.string(),
+      };
+    case "SparkTokensMinted":
+      return {
+        type: "SparkTokensMinted",
+        marketId: r.u64(),
+        user: r.pubkey(),
+        outcomeIndex: r.u8(),
+        usdcAmount: r.u64(),
+        fee: r.u64(),
+        tokensMinted: r.u64(),
+      };
+    case "SparkTokensRedeemed":
+      return {
+        type: "SparkTokensRedeemed",
+        marketId: r.u64(),
+        user: r.pubkey(),
+        outcomeIndex: r.u8(),
+        tokensBurned: r.u64(),
+        usdcReturned: r.u64(),
+      };
+    case "SparkMarketResolved":
+      return {
+        type: "SparkMarketResolved",
+        marketId: r.u64(),
+        winningOutcome: r.u8(),
+        totalPool: r.u64(),
+      };
+    case "SparkWinningsClaimed":
+      return {
+        type: "SparkWinningsClaimed",
+        marketId: r.u64(),
+        user: r.pubkey(),
+        tokensBurned: r.u64(),
+        payout: r.u64(),
+      };
+    case "SparkFeesCollected":
+      return { type: "SparkFeesCollected", marketId: r.u64(), amount: r.u64() };
   }
 }
 

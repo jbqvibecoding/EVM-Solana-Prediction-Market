@@ -27,6 +27,11 @@ async function main(): Promise<void> {
     new PublicKey(requireEnv("EXCHANGE_PROGRAM_ID")),
     new PublicKey(requireEnv("CONDITIONAL_TOKEN_PROGRAM_ID")),
   ];
+  // Optional: index the events_futures (spark markets) program when configured
+  // (e.g. 7sech8m8biTTjb6e2UpdGx6wnnSqjMVyRFEVGPSvZ6sc once deployed).
+  if (process.env.SPARK_FUTURES_PROGRAM_ID) {
+    programs.push(new PublicKey(process.env.SPARK_FUTURES_PROGRAM_ID));
+  }
   const source = new RpcLogSource(connection, programs);
   const intervalMs = Number(process.env.POLL_INTERVAL_MS ?? "3000");
 

@@ -6,6 +6,7 @@ function fakeStore(overrides: Partial<Store> = {}): Store {
   return {
     applyEvent: async () => {},
     getMarkets: async () => [],
+    getSparkMarkets: async () => [],
     getPositions: async () => [],
     getVolume: async () => 0n,
     getTrades: async () => [],

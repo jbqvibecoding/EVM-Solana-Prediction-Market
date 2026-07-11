@@ -30,6 +30,68 @@ export function markets(model: ReadModel): MarketSummary[] {
   return out;
 }
 
+/**
+ * Wire shape consumed directly by the frontend /spark listing
+ * (prediction-market src/lib/spark-markets.ts SparkMarketListing).
+ * `totalUsdcDeposited` carries the current USDC backing the curves.
+ */
+export interface SparkMarketListing {
+  title: string;
+  config: {
+    marketId: string;
+    outcomeCount: number;
+    curve: { mNum: string; mDen: string; nNum: string; nDen: string };
+    vault: string;
+    totalUsdcDeposited: string;
+    totalFeesCollected: string;
+    status: "active" | "resolved";
+    winningOutcome: number | null;
+    outcomes: {
+      index: number;
+      label: string;
+      mint: string;
+      currentSupply: string;
+      usdcInCurve: string;
+    }[];
+  };
+}
+
+/** Spark markets shaped for the frontend listing API. */
+export function sparkMarketListings(model: ReadModel): SparkMarketListing[] {
+  const out: SparkMarketListing[] = [];
+  for (const market of model.sparkMarkets.values()) {
+    const outcomes = [...market.outcomes.values()]
+      .sort((a, b) => a.outcomeIndex - b.outcomeIndex)
+      .map((outcome) => ({
+        index: outcome.outcomeIndex,
+        label: outcome.label,
+        mint: outcome.mint,
+        currentSupply: outcome.currentSupply.toString(),
+        usdcInCurve: outcome.usdcInCurve.toString(),
+      }));
+    out.push({
+      title: market.title,
+      config: {
+        marketId: market.marketId,
+        outcomeCount: outcomes.length,
+        curve: {
+          mNum: market.mNum.toString(),
+          mDen: market.mDen.toString(),
+          nNum: market.nNum.toString(),
+          nDen: market.nDen.toString(),
+        },
+        vault: market.vault,
+        totalUsdcDeposited: market.totalUsdcInCurves.toString(),
+        totalFeesCollected: market.totalFeesCollected.toString(),
+        status: market.status,
+        winningOutcome: market.winningOutcome,
+        outcomes,
+      },
+    });
+  }
+  return out;
+}
+
 export interface UserPosition {
   market: string;
   outcome: number;

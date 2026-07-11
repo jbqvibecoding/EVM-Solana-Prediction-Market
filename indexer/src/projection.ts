@@ -24,6 +24,38 @@ export interface ConditionMeta {
   noMint: string;
 }
 
+/** One spark (events_futures) outcome pool, rebuilt from events. */
+export interface SparkOutcomeModel {
+  outcomeIndex: number;
+  label: string;
+  mint: string;
+  currentSupply: bigint;
+  usdcInCurve: bigint;
+}
+
+/**
+ * One spark market, rebuilt from events. The reducer applies the exact same
+ * integer updates as the on-chain handlers (mint adds net = amount − fee,
+ * redeem subtracts proceeds, claim burns winning supply), so this matches the
+ * SparkMarket/OutcomePool accounts.
+ */
+export interface SparkMarketModel {
+  marketId: string;
+  creator: string;
+  collateralMint: string;
+  vault: string;
+  title: string;
+  mNum: bigint;
+  mDen: bigint;
+  nNum: bigint;
+  nDen: bigint;
+  status: "active" | "resolved";
+  winningOutcome: number | null;
+  totalUsdcInCurves: bigint;
+  totalFeesCollected: bigint;
+  outcomes: Map<number, SparkOutcomeModel>;
+}
+
 /**
  * In-memory read model derived purely from program events. The Postgres adapter
  * (pgStore.ts) applies the same semantics as SQL upserts.
@@ -40,6 +72,8 @@ export interface ReadModel {
   conditions: Map<string, ConditionMeta>;
   /** market -> winning outcome (once resolved) */
   marketResolved: Map<string, number>;
+  /** spark market id (decimal string) -> spark market model */
+  sparkMarkets: Map<string, SparkMarketModel>;
 }
 
 export function emptyModel(): ReadModel {
@@ -50,6 +84,7 @@ export function emptyModel(): ReadModel {
     conditionMarket: new Map(),
     conditions: new Map(),
     marketResolved: new Map(),
+    sparkMarkets: new Map(),
   };
 }
 
@@ -150,6 +185,78 @@ export function applyEvent(
       const winning = model.marketResolved.get(market);
       if (winning === undefined) break;
       addPosition(model, ev.user, market, winning, -ev.amount);
+      break;
+    }
+    case "SparkMarketCreated": {
+      const id = ev.marketId.toString();
+      model.sparkMarkets.set(id, {
+        marketId: id,
+        creator: ev.creator,
+        collateralMint: ev.collateralMint,
+        vault: ev.vault,
+        title: ev.title,
+        mNum: ev.mNum,
+        mDen: ev.mDen,
+        nNum: ev.nNum,
+        nDen: ev.nDen,
+        status: "active",
+        winningOutcome: null,
+        totalUsdcInCurves: 0n,
+        totalFeesCollected: 0n,
+        outcomes: new Map(),
+      });
+      break;
+    }
+    case "SparkOutcomeAdded": {
+      const market = model.sparkMarkets.get(ev.marketId.toString());
+      if (!market) break;
+      market.outcomes.set(ev.outcomeIndex, {
+        outcomeIndex: ev.outcomeIndex,
+        label: ev.label,
+        mint: ev.mint,
+        currentSupply: 0n,
+        usdcInCurve: 0n,
+      });
+      break;
+    }
+    case "SparkTokensMinted": {
+      const market = model.sparkMarkets.get(ev.marketId.toString());
+      const outcome = market?.outcomes.get(ev.outcomeIndex);
+      if (!market || !outcome) break;
+      const net = ev.usdcAmount - ev.fee;
+      outcome.currentSupply += ev.tokensMinted;
+      outcome.usdcInCurve += net;
+      market.totalUsdcInCurves += net;
+      market.totalFeesCollected += ev.fee;
+      break;
+    }
+    case "SparkTokensRedeemed": {
+      const market = model.sparkMarkets.get(ev.marketId.toString());
+      const outcome = market?.outcomes.get(ev.outcomeIndex);
+      if (!market || !outcome) break;
+      outcome.currentSupply -= ev.tokensBurned;
+      outcome.usdcInCurve -= ev.usdcReturned;
+      market.totalUsdcInCurves -= ev.usdcReturned;
+      break;
+    }
+    case "SparkMarketResolved": {
+      const market = model.sparkMarkets.get(ev.marketId.toString());
+      if (!market) break;
+      market.status = "resolved";
+      market.winningOutcome = ev.winningOutcome;
+      break;
+    }
+    case "SparkWinningsClaimed": {
+      const market = model.sparkMarkets.get(ev.marketId.toString());
+      if (!market || market.winningOutcome === null) break;
+      const outcome = market.outcomes.get(market.winningOutcome);
+      if (!outcome) break;
+      outcome.currentSupply -= ev.tokensBurned;
+      break;
+    }
+    case "SparkFeesCollected": {
+      // Fee accrual is tracked at mint time; the sweep to the treasury does
+      // not change the read model (fees remain "collected").
       break;
     }
   }

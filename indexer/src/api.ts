@@ -1,5 +1,5 @@
 import { ReadModel, Trade, getVolume } from "./projection.js";
-import { MarketSummary, leaderboardByVolume, marketTrades, markets, userPositions } from "./queries.js";
+import { MarketSummary, leaderboardByVolume, marketTrades, markets, sparkMarketListings, userPositions } from "./queries.js";
 
 export interface ApiRequest {
   method: string;
@@ -56,6 +56,10 @@ export function handleRequest(model: ReadModel, req: ApiRequest): ApiResponse {
 
   if (req.path === "/markets") {
     return { status: 200, body: markets(model).map(wireMarket) };
+  }
+
+  if (req.path === "/spark-markets") {
+    return { status: 200, body: sparkMarketListings(model) };
   }
 
   if (req.path === "/positions") {

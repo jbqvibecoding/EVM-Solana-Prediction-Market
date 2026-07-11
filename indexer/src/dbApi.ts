@@ -48,6 +48,10 @@ export async function handleDbRequest(store: Store, req: ApiRequest): Promise<Ap
     return { status: 200, body: markets.map(wireMarket) };
   }
 
+  if (req.path === "/spark-markets") {
+    return { status: 200, body: await store.getSparkMarkets() };
+  }
+
   if (req.path === "/positions") {
     const user = req.query.user;
     if (!user) return { status: 400, body: { error: "user required" } };

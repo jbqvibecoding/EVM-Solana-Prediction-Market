@@ -39,6 +39,7 @@ function recordingStore() {
       cursor = s;
     },
     getMarkets: async () => [],
+    getSparkMarkets: async () => [],
     getPositions: async () => [],
     getVolume: async () => 0n,
     getTrades: async () => [],

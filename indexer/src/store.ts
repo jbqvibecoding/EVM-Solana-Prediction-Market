@@ -1,5 +1,6 @@
 import { DecodedEvent } from "./events.js";
 import { EventMeta } from "./projection.js";
+import { SparkMarketListing } from "./queries.js";
 
 /**
  * Persistent read-model store. The in-memory model (projection.ts) and the
@@ -43,6 +44,8 @@ export interface StoreMarket {
 export interface Store {
   applyEvent(ev: DecodedEvent, meta?: EventMeta): Promise<void>;
   getMarkets(): Promise<StoreMarket[]>;
+  /** Spark markets pre-shaped as frontend SparkMarketListing objects. */
+  getSparkMarkets(): Promise<SparkMarketListing[]>;
   getPositions(user: string): Promise<StorePosition[]>;
   getVolume(market: string): Promise<bigint>;
   getTrades(market?: string): Promise<StoreTrade[]>;
